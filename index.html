@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Webinar KPI Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f5f3ee; --bg2: #eceae4; --surface: #ffffff; --border: #d8d5cc;
+    --text: #1a1916; --text2: #6b6860; --text3: #a09d98;
+    --accent: #c8401a; --accent2: #e8550a;
+    --shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+    --radius: 12px; --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+  }
+  [data-theme="dark"] {
+    --bg: #111110; --bg2: #1a1916; --surface: #1e1d1b; --border: #2e2d2a;
+    --text: #f0ede8; --text2: #9a9790; --text3: #5a5850;
+    --accent: #e85520; --accent2: #ff6830;
+    --shadow: 0 1px 3px rgba(0,0,0,0.3), 0 4px 16px rgba(0,0,0,0.2);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; transition: background var(--transition), color var(--transition); }
+
+  /* LOGIN */
+  #loginScreen { position: fixed; inset: 0; background: var(--bg); display: flex; align-items: center; justify-content: center; z-index: 9999; transition: background var(--transition); }
+  .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 2.5rem 2rem; width: 320px; box-shadow: var(--shadow); text-align: center; }
+  .login-logo { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1.5rem; }
+  .login-box input[type="password"] { width: 100%; background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: 'DM Mono', monospace; font-size: 15px; color: var(--text); outline: none; text-align: center; letter-spacing: 0.15em; margin-bottom: 12px; transition: border-color var(--transition); }
+  .login-box input[type="password"]:focus { border-color: var(--accent); }
+  .login-submit { width: 100%; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 10px; font-family: 'DM Sans', sans-serif; font-size: 14px; font-weight: 500; cursor: pointer; transition: background var(--transition); }
+  .login-submit:hover { background: var(--accent2); }
+  .login-err { font-size: 12px; color: #c82020; margin-top: 10px; min-height: 16px; }
+
+  /* TOPBAR */
+  .topbar { position: sticky; top: 0; z-index: 100; background: var(--bg); border-bottom: 1px solid var(--border); padding: 0 2rem; display: flex; align-items: center; justify-content: space-between; height: 56px; transition: background var(--transition), border-color var(--transition); }
+  .logo { font-family: 'DM Mono', monospace; font-size: 13px; font-weight: 500; color: var(--accent); letter-spacing: 0.08em; text-transform: uppercase; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .theme-toggle { background: var(--bg2); border: 1px solid var(--border); border-radius: 20px; width: 48px; height: 26px; cursor: pointer; position: relative; transition: background var(--transition); flex-shrink: 0; }
+  .theme-toggle::after { content: ''; position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--text2); transition: transform var(--transition), background var(--transition); }
+  [data-theme="dark"] .theme-toggle::after { transform: translateX(22px); background: var(--accent); }
+  .icon-btn { background: none; border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px; font-family: 'DM Mono', monospace; color: var(--text2); cursor: pointer; transition: border-color var(--transition), color var(--transition); }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .save-btn { background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 7px 16px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background var(--transition), transform 0.1s; }
+  .save-btn:hover { background: var(--accent2); }
+  .save-btn:active { transform: scale(0.97); }
+
+  /* LAYOUT */
+  .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+  .page-title { font-size: 13px; font-family: 'DM Mono', monospace; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 1.5rem; }
+
+  /* SETTINGS PANEL */
+  #settingsPanel { display: none; }
+  #settingsPanel.open { display: block; }
+  .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; transition: background var(--transition), border-color var(--transition); }
+  .settings-title { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .settings-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+  .settings-note { font-size: 11px; color: var(--text3); margin-top: 10px; line-height: 1.6; padding: 10px 12px; background: var(--bg2); border-radius: 8px; font-family: 'DM Mono', monospace; }
+  .save-settings-btn { margin-top: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; padding: 8px 18px; font-family: 'DM Sans', sans-serif; font-size: 13px; font-weight: 500; cursor: pointer; transition: background var(--transition); }
+  .save-settings-btn:hover { background: var(--accent2); }
+
+  /* FORM */
+  .form-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.5rem; box-shadow: var(--shadow); margin-bottom: 1.5rem; transition: background var(--transition), border-color var(--transition); }
+  .form-section-title { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; margin-bottom: 1rem; padding-bottom: 8px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; }
+  .field { display: flex; flex-direction: column; gap: 5px; }
+  .field label { font-size: 11px; font-weight: 500; color: var(--text2); letter-spacing: 0.03em; }
+  .field input { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 9px 12px; font-family: 'DM Mono', monospace; font-size: 14px; color: var(--text); width: 100%; transition: border-color var(--transition), background var(--transition); outline: none; }
+  .field input:focus { border-color: var(--accent); background: var(--surface); }
+  .field input::placeholder { color: var(--text3); }
+  .field input:read-only { opacity: 0.6; cursor: not-allowed; }
+  .date-range { display: flex; align-items: center; gap: 8px; }
+  .date-range span { font-size: 12px; color: var(--text3); font-family: 'DM Mono', monospace; flex-shrink: 0; }
+  .date-range input { flex: 1; min-width: 0; }
+
+  /* FETCH BTN */
+  .fetch-row { display: flex; align-items: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .fetch-btn { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 8px 16px; font-family: 'DM Mono', monospace; font-size: 12px; color: var(--text2); cursor: pointer; transition: border-color var(--transition), color var(--transition), background var(--transition); display: flex; align-items: center; gap: 6px; }
+  .fetch-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--surface); }
+  .fetch-btn.loading { opacity: 0.6; cursor: wait; }
+  .fetch-status { font-size: 11px; font-family: 'DM Mono', monospace; color: var(--text3); }
+  .fetch-status.ok { color: #1a7a4a; }
+  .fetch-status.err { color: #c82020; }
+
+  /* KPI */
+  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(155px, 1fr)); gap: 10px; margin-bottom: 1.5rem; }
+  .kpi-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1rem; box-shadow: var(--shadow); transition: background var(--transition), border-color var(--transition); }
+  .kpi-label { font-size: 10px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text); line-height: 1; margin-bottom: 4px; }
+  .kpi-sub { font-size: 11px; color: var(--text3); }
+
+  /* HISTORY */
+  .history-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; transition: background var(--transition), border-color var(--transition); }
+  .history-header { padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .history-header span { font-size: 11px; font-family: 'DM Mono', monospace; font-weight: 500; color: var(--text3); letter-spacing: 0.1em; text-transform: uppercase; }
+  .clear-btn { background: none; border: 1px solid var(--border); border-radius: 6px; padding: 4px 10px; font-size: 11px; color: var(--text2); cursor: pointer; font-family: 'DM Sans', sans-serif; transition: border-color 0.15s, color 0.15s; }
+  .clear-btn:hover { border-color: #c82020; color: #c82020; }
+  .history-table-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  thead th { padding: 8px 12px; text-align: left; font-family: 'DM Mono', monospace; font-weight: 500; font-size: 10px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text3); background: var(--bg2); border-bottom: 1px solid var(--border); white-space: nowrap; }
+  tbody td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); font-family: 'DM Mono', monospace; white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: var(--bg2); }
+  .del-row { background: none; border: none; color: var(--text3); cursor: pointer; font-size: 14px; padding: 0 4px; transition: color 0.15s; }
+  .del-row:hover { color: #c82020; }
+  .empty-state { padding: 3rem; text-align: center; color: var(--text3); font-size: 13px; font-family: 'DM Mono', monospace; }
+
+  .toast { position: fixed; bottom: 24px; right: 24px; background: var(--text); color: var(--bg); padding: 10px 18px; border-radius: 8px; font-size: 13px; font-family: 'DM Sans', sans-serif; font-weight: 500; opacity: 0; transform: translateY(8px); transition: opacity 0.2s, transform 0.2s; pointer-events: none; z-index: 999; }
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  @media (max-width: 600px) {
+    .container { padding: 1rem; }
+    .topbar { padding: 0 1rem; }
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <div class="login-logo">Webinar KPI</div>
+    <input type="password" id="pwInput" placeholder="••••••••••" onkeydown="if(event.key==='Enter')checkPw()">
+    <button class="login-submit" onclick="checkPw()">Wejdź</button>
+    <div class="login-err" id="pwErr"></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <div class="topbar">
+    <div class="logo">Webinar KPI</div>
+    <div class="topbar-right">
+      <button class="icon-btn" onclick="toggleSettings()">⚙ Ustawienia</button>
+      <button class="theme-toggle" id="themeToggle" title="Zmień motyw"></button>
+      <button class="save-btn" onclick="saveEntry()">Zapisz sesję</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <p class="page-title">Kalkulator → wpisz dane lub pobierz z API</p>
+
+    <!-- SETTINGS -->
+    <div id="settingsPanel">
+      <div class="settings-card">
+        <div class="settings-title">
+          <span>Połączenia API</span>
+        </div>
+        <div class="settings-grid">
+          <div class="field">
+            <label>Meta Ad Account ID</label>
+            <input type="text" id="s_meta_account" placeholder="123456789">
+          </div>
+          <div class="field">
+            <label>WebinarJam Webinar ID</label>
+            <input type="text" id="s_wj_webinar" placeholder="5">
+          </div>
+        </div>
+        <div class="settings-note">
+          ⚠ Tokeny API wpisz jako zmienne środowiskowe w Vercelu:<br>
+          META_TOKEN → twój Meta Access Token<br>
+          WJ_API_KEY → twój WebinarJam API Key<br>
+          Nie wpisuj ich tutaj — byłoby widoczne w przeglądarce.
+        </div>
+        <button class="save-settings-btn" onclick="saveSettings()">Zapisz ustawienia</button>
+      </div>
+    </div>
+
+    <!-- INPUT FORM -->
+    <div class="form-card">
+      <div class="form-section-title">
+        <span>Dane wejściowe</span>
+      </div>
+      <div class="form-grid">
+        <div class="field" style="grid-column: span 2;">
+          <label>Przedział dat</label>
+          <div class="date-range">
+            <input type="date" id="f_date_from">
+            <span>→</span>
+            <input type="date" id="f_date_to">
+          </div>
+        </div>
+        <div class="field">
+          <label>Wydatki na reklamę (zł)</label>
+          <input type="number" id="f_spend" placeholder="302.17" step="0.01" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Kliknięcia</label>
+          <input type="number" id="f_clicks" placeholder="250" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Ilość zapisów</label>
+          <input type="number" id="f_leads" placeholder="43" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Ile osób przyszło</label>
+          <input type="number" id="f_showup" placeholder="13" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Ile osób kupiło</label>
+          <input type="number" id="f_sales" placeholder="2" oninput="calc()">
+        </div>
+        <div class="field">
+          <label>Cena kursu (zł)</label>
+          <input type="number" id="f_price" placeholder="1497" step="0.01" oninput="calc()">
+        </div>
+      </div>
+
+      <div class="fetch-row">
+        <button class="fetch-btn" id="btnMeta" onclick="fetchMeta()">
+          ↓ Pobierz z Meta
+        </button>
+        <button class="fetch-btn" id="btnWJ" onclick="fetchWJ()">
+          ↓ Pobierz z WebinarJam
+        </button>
+        <span class="fetch-status" id="fetchStatus"></span>
+      </div>
+    </div>
+
+    <!-- KPI -->
+    <div class="kpi-grid">
+      <div class="kpi-card"><div class="kpi-label">CPL</div><div class="kpi-value" id="k_cpl">—</div><div class="kpi-sub">koszt za zapis</div></div>
+      <div class="kpi-card"><div class="kpi-label">LP CR%</div><div class="kpi-value" id="k_lpcr">—</div><div class="kpi-sub">kliknięcia → zapisy</div></div>
+      <div class="kpi-card"><div class="kpi-label">Widzowie %</div><div class="kpi-value" id="k_showrate">—</div><div class="kpi-sub">show up rate</div></div>
+      <div class="kpi-card"><div class="kpi-label">CPATT</div><div class="kpi-value" id="k_cpatt">—</div><div class="kpi-sub">koszt za uczestnika</div></div>
+      <div class="kpi-card"><div class="kpi-label">Sprzedaż %</div><div class="kpi-value" id="k_closerate">—</div><div class="kpi-sub">z uczestników</div></div>
+      <div class="kpi-card"><div class="kpi-label">Przychód</div><div class="kpi-value" id="k_revenue">—</div><div class="kpi-sub">łączna sprzedaż</div></div>
+      <div class="kpi-card"><div class="kpi-label">ROAS</div><div class="kpi-value" id="k_roas">—</div><div class="kpi-sub">przychód / spend</div></div>
+      <div class="kpi-card"><div class="kpi-label">Zysk</div><div class="kpi-value" id="k_profit">—</div><div class="kpi-sub">przychód − spend</div></div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="history-card">
+      <div class="history-header">
+        <span>Historia sesji</span>
+        <button class="clear-btn" onclick="clearHistory()">Wyczyść</button>
+      </div>
+      <div class="history-table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Od</th><th>Do</th><th>Spend</th><th>Kliknięcia</th><th>Zapisy</th>
+              <th>CPL</th><th>LP CR%</th><th>Przyszło</th><th>Show up%</th>
+              <th>CPATT</th><th>Kupili</th><th>Close%</th><th>Przychód</th><th>ROAS</th><th></th>
+            </tr>
+          </thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+        <div class="empty-state" id="emptyState">Brak zapisanych sesji</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const PASS = 'Alufelga10';
+  const root = document.documentElement;
+  root.setAttribute('data-theme', localStorage.getItem('wkpi_theme') || 'light');
+
+  function checkPw() {
+    if (document.getElementById('pwInput').value === PASS) {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').style.display = '';
+      initApp();
+    } else {
+      document.getElementById('pwErr').textContent = 'Nieprawidłowe hasło';
+      document.getElementById('pwInput').value = '';
+      document.getElementById('pwInput').focus();
+    }
+  }
+
+  function initApp() {
+    let theme = localStorage.getItem('wkpi_theme') || 'light';
+    root.setAttribute('data-theme', theme);
+    document.getElementById('themeToggle').addEventListener('click', () => {
+      theme = theme === 'light' ? 'dark' : 'light';
+      root.setAttribute('data-theme', theme);
+      localStorage.setItem('wkpi_theme', theme);
+    });
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('f_date_from').value = today;
+    document.getElementById('f_date_to').value = today;
+    loadSettings();
+    renderHistory();
+    calc();
+  }
+
+  // SETTINGS
+  let settingsOpen = false;
+  function toggleSettings() {
+    settingsOpen = !settingsOpen;
+    document.getElementById('settingsPanel').classList.toggle('open', settingsOpen);
+  }
+
+  function saveSettings() {
+    localStorage.setItem('wkpi_meta_account', document.getElementById('s_meta_account').value.trim());
+    localStorage.setItem('wkpi_wj_webinar',   document.getElementById('s_wj_webinar').value.trim());
+    showToast('Ustawienia zapisane ✓');
+  }
+
+  function loadSettings() {
+    document.getElementById('s_meta_account').value = localStorage.getItem('wkpi_meta_account') || '';
+    document.getElementById('s_wj_webinar').value   = localStorage.getItem('wkpi_wj_webinar')   || '';
+  }
+
+  // FETCH META
+  async function fetchMeta() {
+    const accountId = localStorage.getItem('wkpi_meta_account');
+    const dateFrom  = document.getElementById('f_date_from').value;
+    const dateTo    = document.getElementById('f_date_to').value;
+
+    if (!accountId) { setStatus('Wpisz Ad Account ID w ustawieniach', 'err'); toggleSettings(); return; }
+    if (!dateFrom || !dateTo) { setStatus('Wybierz przedział dat', 'err'); return; }
+
+    const btn = document.getElementById('btnMeta');
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Pobieranie...';
+    setStatus('');
+
+    try {
+      const res = await fetch(`/api/meta?account_id=${accountId}&date_from=${dateFrom}&date_to=${dateTo}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      document.getElementById('f_spend').value  = data.spend.toFixed(2);
+      document.getElementById('f_clicks').value = data.clicks;
+      calc();
+      setStatus('✓ Meta — dane pobrane', 'ok');
+    } catch (e) {
+      setStatus('✗ Meta: ' + e.message, 'err');
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = '↓ Pobierz z Meta';
+    }
+  }
+
+  // FETCH WEBINARJAM
+  async function fetchWJ() {
+    const webinarId = localStorage.getItem('wkpi_wj_webinar');
+    if (!webinarId) { setStatus('Wpisz Webinar ID w ustawieniach', 'err'); toggleSettings(); return; }
+
+    const btn = document.getElementById('btnWJ');
+    btn.classList.add('loading');
+    btn.textContent = '⏳ Pobieranie...';
+    setStatus('');
+
+    try {
+      const res = await fetch(`/api/webinarjam?webinar_id=${webinarId}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      document.getElementById('f_leads').value  = data.registrants;
+      document.getElementById('f_showup').value = data.attended;
+      calc();
+      setStatus('✓ WebinarJam — dane pobrane', 'ok');
+    } catch (e) {
+      setStatus('✗ WebinarJam: ' + e.message, 'err');
+    } finally {
+      btn.classList.remove('loading');
+      btn.textContent = '↓ Pobierz z WebinarJam';
+    }
+  }
+
+  function setStatus(msg, type) {
+    const el = document.getElementById('fetchStatus');
+    el.textContent = msg;
+    el.className = 'fetch-status' + (type ? ' ' + type : '');
+  }
+
+  // CALC
+  function n(id) { return parseFloat(document.getElementById(id).value) || 0; }
+  function fmt(v, d=2) { return (!isFinite(v)||isNaN(v)) ? '—' : v.toFixed(d); }
+  function fmtPLN(v) { return (!isFinite(v)||isNaN(v)) ? '—' : (v>=0?'':'−')+Math.abs(v).toFixed(0)+' zł'; }
+
+  function calc() {
+    const spend=n('f_spend'), clicks=n('f_clicks'), leads=n('f_leads'),
+          showup=n('f_showup'), sales=n('f_sales'), price=n('f_price');
+    const cpl=leads>0?spend/leads:NaN, lpcr=clicks>0?(leads/clicks)*100:NaN,
+          showrate=leads>0?(showup/leads)*100:NaN, cpatt=showup>0?spend/showup:NaN,
+          closerate=showup>0?(sales/showup)*100:NaN, revenue=sales*price,
+          roas=spend>0?revenue/spend:NaN, profit=revenue-spend;
+    document.getElementById('k_cpl').textContent       = isFinite(cpl)       ? fmt(cpl)+' zł'      : '—';
+    document.getElementById('k_lpcr').textContent      = isFinite(lpcr)      ? fmt(lpcr,1)+'%'     : '—';
+    document.getElementById('k_showrate').textContent  = isFinite(showrate)  ? fmt(showrate,1)+'%' : '—';
+    document.getElementById('k_cpatt').textContent     = isFinite(cpatt)     ? fmt(cpatt)+' zł'    : '—';
+    document.getElementById('k_closerate').textContent = isFinite(closerate) ? fmt(closerate,1)+'%': '—';
+    document.getElementById('k_revenue').textContent   = revenue>0           ? fmtPLN(revenue)      : '—';
+    document.getElementById('k_roas').textContent      = isFinite(roas)      ? fmt(roas,2)+'x'     : '—';
+    document.getElementById('k_profit').textContent    = spend>0             ? fmtPLN(profit)       : '—';
+  }
+
+  // HISTORY
+  let history = JSON.parse(localStorage.getItem('wkpi_history')||'[]');
+
+  function saveEntry() {
+    const spend=n('f_spend'),clicks=n('f_clicks'),leads=n('f_leads'),
+          showup=n('f_showup'),sales=n('f_sales'),price=n('f_price'),
+          dateFrom=document.getElementById('f_date_from').value,
+          dateTo=document.getElementById('f_date_to').value;
+    if(!spend&&!leads){showToast('Wpisz przynajmniej spend i zapisy');return;}
+    history.unshift({
+      dateFrom,dateTo,spend,clicks,leads,price,
+      cpl:leads>0?spend/leads:null,
+      lpcr:clicks>0?(leads/clicks)*100:null,
+      showup,showrate:leads>0?(showup/leads)*100:null,
+      cpatt:showup>0?spend/showup:null,
+      sales,closerate:showup>0?(sales/showup)*100:null,
+      revenue:sales*price,
+      roas:spend>0?(sales*price)/spend:null
+    });
+    localStorage.setItem('wkpi_history',JSON.stringify(history));
+    renderHistory();
+    showToast('Zapisano sesję ✓');
+  }
+
+  function deleteRow(i){history.splice(i,1);localStorage.setItem('wkpi_history',JSON.stringify(history));renderHistory();}
+  function clearHistory(){if(!confirm('Wyczyścić całą historię?'))return;history=[];localStorage.setItem('wkpi_history',JSON.stringify(history));renderHistory();}
+
+  function renderHistory() {
+    const tbody=document.getElementById('historyBody'),empty=document.getElementById('emptyState');
+    empty.style.display=history.length===0?'':'none';
+    const f=(v,d,s)=>v!==null?v.toFixed(d)+s:'—';
+    tbody.innerHTML=history.map((e,i)=>`<tr>
+      <td>${e.dateFrom||'—'}</td><td>${e.dateTo||'—'}</td>
+      <td>${e.spend?e.spend.toFixed(0)+' zł':'—'}</td>
+      <td>${e.clicks||'—'}</td><td>${e.leads||'—'}</td>
+      <td>${f(e.cpl,2,' zł')}</td><td>${f(e.lpcr,1,'%')}</td>
+      <td>${e.showup||'—'}</td><td>${f(e.showrate,1,'%')}</td>
+      <td>${f(e.cpatt,2,' zł')}</td><td>${e.sales||'—'}</td>
+      <td>${f(e.closerate,1,'%')}</td>
+      <td>${e.revenue?e.revenue.toFixed(0)+' zł':'—'}</td>
+      <td>${f(e.roas,2,'x')}</td>
+      <td><button class="del-row" onclick="deleteRow(${i})">×</button></td>
+    </tr>`).join('');
+  }
+
+  function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
+</script>
+</body>
+</html>

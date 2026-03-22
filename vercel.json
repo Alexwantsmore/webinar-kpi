@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/api/meta", "destination": "/api/meta.js" },
+    { "source": "/api/webinarjam", "destination": "/api/webinarjam.js" }
+  ]
+}
