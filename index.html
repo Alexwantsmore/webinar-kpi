@@ -157,11 +157,16 @@
             <label>WebinarJam Webinar ID</label>
             <input type="text" id="s_wj_webinar" placeholder="5">
           </div>
+          <div class="field" style="grid-column: span 2;">
+            <label>Notion Database ID (wodospad)</label>
+            <input type="text" id="s_notion_db" placeholder="32-znakowe ID bazy z URL Notion">
+          </div>
         </div>
         <div class="settings-note">
           ⚠ Tokeny API wpisz jako zmienne środowiskowe w Vercelu:<br>
           META_TOKEN → twój Meta Access Token<br>
           WJ_API_KEY → twój WebinarJam API Key<br>
+          NOTION_TOKEN → twój Notion Integration Token (secret_...)<br>
           Nie wpisuj ich tutaj — byłoby widoczne w przeglądarce.
         </div>
         <button class="save-settings-btn" onclick="saveSettings()">Zapisz ustawienia</button>
@@ -235,7 +240,11 @@
     <div class="history-card">
       <div class="history-header">
         <span>Historia sesji</span>
-        <button class="clear-btn" onclick="clearHistory()">Wyczyść</button>
+        <div style="display:flex; gap:8px; align-items:center;">
+          <span class="fetch-status" id="notionStatus"></span>
+          <button class="clear-btn" onclick="pushAllToNotion()" style="border-color:var(--accent); color:var(--accent);">↑ Wyślij do Notion</button>
+          <button class="clear-btn" onclick="clearHistory()">Wyczyść</button>
+        </div>
       </div>
       <div class="history-table-wrap">
         <table>
@@ -299,12 +308,58 @@
   function saveSettings() {
     localStorage.setItem('wkpi_meta_account', document.getElementById('s_meta_account').value.trim());
     localStorage.setItem('wkpi_wj_webinar',   document.getElementById('s_wj_webinar').value.trim());
+    localStorage.setItem('wkpi_notion_db',    document.getElementById('s_notion_db').value.trim());
     showToast('Ustawienia zapisane ✓');
   }
 
   function loadSettings() {
     document.getElementById('s_meta_account').value = localStorage.getItem('wkpi_meta_account') || '';
     document.getElementById('s_wj_webinar').value   = localStorage.getItem('wkpi_wj_webinar')   || '';
+    document.getElementById('s_notion_db').value    = localStorage.getItem('wkpi_notion_db')    || '';
+  }
+
+  // NOTION
+  async function pushSessionToNotion(session) {
+    const databaseId = localStorage.getItem('wkpi_notion_db');
+    if (!databaseId) return { skipped: true };
+    const res = await fetch('/api/notion', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ database_id: databaseId, session }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error || `HTTP ${res.status}`);
+    return data;
+  }
+
+  function setNotionStatus(msg, type) {
+    const el = document.getElementById('notionStatus');
+    el.textContent = msg;
+    el.className = 'fetch-status' + (type ? ' ' + type : '');
+  }
+
+  async function pushAllToNotion() {
+    if (!localStorage.getItem('wkpi_notion_db')) {
+      setNotionStatus('Wpisz Notion Database ID w ustawieniach', 'err');
+      toggleSettings();
+      return;
+    }
+    if (history.length === 0) { setNotionStatus('Brak sesji do wysłania', 'err'); return; }
+    if (!confirm(`Wysłać ${history.length} sesji do Notion?`)) return;
+
+    setNotionStatus(`⏳ Wysyłanie 0/${history.length}...`);
+    let ok = 0, fail = 0;
+    for (let i = 0; i < history.length; i++) {
+      try {
+        await pushSessionToNotion(history[i]);
+        ok++;
+      } catch (e) {
+        fail++;
+        console.error('Notion push failed:', e);
+      }
+      setNotionStatus(`⏳ Wysyłanie ${i + 1}/${history.length}... (✓${ok} ✗${fail})`);
+    }
+    setNotionStatus(`Notion: ✓${ok} wysłane${fail ? `, ✗${fail} błędów` : ''}`, fail ? 'err' : 'ok');
   }
 
   // FETCH META
@@ -402,7 +457,7 @@
           dateFrom=document.getElementById('f_date_from').value,
           dateTo=document.getElementById('f_date_to').value;
     if(!spend&&!leads){showToast('Wpisz przynajmniej spend i zapisy');return;}
-    history.unshift({
+    const entry = {
       dateFrom,dateTo,spend,clicks,leads,price,
       cpl:leads>0?spend/leads:null,
       lpcr:clicks>0?(leads/clicks)*100:null,
@@ -410,11 +465,24 @@
       cpatt:showup>0?spend/showup:null,
       sales,closerate:showup>0?(sales/showup)*100:null,
       revenue:sales*price,
+      profit:spend>0?(sales*price)-spend:null,
       roas:spend>0?(sales*price)/spend:null
-    });
+    };
+    history.unshift(entry);
     localStorage.setItem('wkpi_history',JSON.stringify(history));
     renderHistory();
     showToast('Zapisano sesję ✓');
+
+    if (localStorage.getItem('wkpi_notion_db')) {
+      setNotionStatus('⏳ Wysyłam do Notion...');
+      pushSessionToNotion(entry)
+        .then(r => {
+          if (r.skipped) return;
+          setNotionStatus('✓ Notion: wysłano', 'ok');
+          showToast('Wysłano do Notion ✓');
+        })
+        .catch(e => setNotionStatus('✗ Notion: ' + e.message, 'err'));
+    }
   }
 
   function deleteRow(i){history.splice(i,1);localStorage.setItem('wkpi_history',JSON.stringify(history));renderHistory();}
